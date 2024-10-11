@@ -1,5 +1,6 @@
-#include <bits/stdc++.h>
-
+#include <iostream>
+#include <iomanip>
+#include <vector>
 
 using namespace std;
 
@@ -8,10 +9,10 @@ double EPSILON;
 struct Simplex {
     int m, n;
     vector<int> B, N;
-    vector<vector<double>> D;
+    vector<vector<double> > D;
 
-    Simplex(const vector<vector<double>> &A, const vector<double> &b, const vector<double> &c) :
-        m(b.size()), n(c.size()), B(m), N(n + 1), D(m + 2, vector<double>(n + 2)) {
+    Simplex(const vector<vector<double> > &A, const vector<double> &b, const vector<double> &c) :
+            m(b.size()), n(c.size()), B(m), N(n + 1), D(m + 2, vector<double>(n + 2)) {
         for (int i = 0; i < m; i++) B[i] = n + i;
         for (int j = 0; j < n; j++) N[j] = j;
         N[n] = -1;
@@ -80,7 +81,7 @@ int main() {
     cin >> m;
 
     vector<double> c(n);
-    vector<vector<double>> A(m, vector<double>(n));
+    vector<vector<double> > A(m, vector<double>(n));
     vector<double> b(m);
 
     for (int i = 0; i < n; i++) cin >> c[i];
@@ -97,6 +98,8 @@ int main() {
     double result = simplex.solve(x);
 
     if (result == numeric_limits<double>::infinity()) {
+        cout << "The method is not applicable!" << endl;
+    } else if (result == -numeric_limits<double>::infinity()) {
         cout << "The method is not applicable!" << endl;
     } else {
         cout << "Optimal solution: ";
