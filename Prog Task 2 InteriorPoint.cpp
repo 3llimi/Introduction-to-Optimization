@@ -480,12 +480,7 @@ void debugPrint(const std::string& message, const Matrix& matrix) {
 }
 
 void InteriorPointsolve(ColumnVector c, Matrix A, ColumnVector rightHand, ColumnVector initial, double alpha, int nb_variables, int nb_equations, int itr) {
-    // Negate the cost vector for maximization
-    for (int i = 0; i < nb_variables; i++) {
-        c(i) = -c(i);
-    }
-
-    // Set up D as a diagonal matrix with `initial` values on the diagonal
+    // Set up D as a diagonal matrix with initial values on the diagonal
     Matrix D(nb_variables, nb_variables);
     for (int i = 0; i < nb_variables; i++) {
         D.setElement(i, i, initial.columnValues[i]);
@@ -501,7 +496,7 @@ void InteriorPointsolve(ColumnVector c, Matrix A, ColumnVector rightHand, Column
     Matrix A_T = A_.transpose();
 
     // Calculate A_A_T as A_ * A_T
-    SquareMatrix A_A_T = A_ * A_T;
+    SquareMatrix A_A_T(A_ * A_T);
 
     // Invert A_A_T
     FindInverseMatrix inverseMatrix;
@@ -509,16 +504,14 @@ void InteriorPointsolve(ColumnVector c, Matrix A, ColumnVector rightHand, Column
 
     // Check if inversion is successful
     if (A_A_T_inv.getNbRows() == 0 || A_A_T_inv.getNbColumns() == 0) {
-        throw std::runtime_error("Matrix inversion failed.");
+        cout << "Error: Inversion resulted in an empty matrix." << endl;
+        return; // Exit to avoid NaN in further calculations
     }
 
     // Calculate projection matrix P
-    Matrix I(nb_variables, nb_variables);
-    for (int i = 0; i < nb_variables; i++) {
-        I.setElement(i, i, 1.0); // Create identity matrix
-    }
+    IdentityMatrix I(nb_variables);
     Matrix P = A_T * A_A_T_inv * A_;
-    P = I - P;
+    P = Matrix(I) - P;
 
     // Calculate projected cost vector c_p
     ColumnVector c_p = P * c_;
@@ -526,27 +519,30 @@ void InteriorPointsolve(ColumnVector c, Matrix A, ColumnVector rightHand, Column
     // Check for NaN in projected cost vector
     for (double value : c_p.columnValues) {
         if (isnan(value)) {
-            throw std::runtime_error("c_p contains NaN values.");
+            cout << "Error: c_p contains NaN values." << endl;
+            return; // Exit to prevent invalid calculations
         }
     }
 
-    // Find minimum element in c_p (negated since we're maximizing)
+    // Find minimum element in c_p
     double mini = *min_element(c_p.columnValues.begin(), c_p.columnValues.end());
     double v = abs(mini);
 
     // Check for division by zero in scaling
     if (v < EPSILON) {
-        throw std::runtime_error("Minimum value too close to zero, potential division by zero.");
+        cout << "Error: Division by zero when scaling, minimum value too close to zero." << endl;
+        return; // Exit to prevent NaN in further calculations
     }
 
     // Initialize ones vector
     ColumnVector ones(nb_variables);
     for (int i = 0; i < nb_variables; i++) {
-        ones(i) = 1.0;
+        ones.columnValues[i] = 1.0; // Fill the ones vector
     }
 
     // Scale and adjust x_ vector
-    ColumnVector x_ = c_p * (alpha / v) + ones;
+    ColumnVector x_ = c_p * (alpha / v);
+    x_ = x_ + ones;
 
     // Map back to original space
     ColumnVector x = D * x_;
@@ -554,28 +550,27 @@ void InteriorPointsolve(ColumnVector c, Matrix A, ColumnVector rightHand, Column
     // Check for NaN in the mapped back x vector
     for (double value : x.columnValues) {
         if (isnan(value)) {
-            throw std::runtime_error("x contains NaN values.");
+            cout << "Error: x contains NaN values." << endl;
+            return; // Exit to prevent invalid results
         }
     }
 
     // Check for convergence
     bool found = true;
     for (int i = 0; i < nb_variables; i++) {
-        if (abs(x.columnValues[i] - initial.columnValues[i]) > EPSILON) {
+        if (abs(x.columnValues[i] - initial.columnValues[i]) > 1e-4)
             found = false;
-        }
     }
 
     // Print the optimal solution if found, otherwise iterate further
     if (found) {
         cout << "Optimal Solution (alpha = " << alpha << "):\n" << x;
-        cout << "Objective Function Value: " << -(c * x) << endl; // Negate to display the maximized value
-    } else if (itr < 100) { // Add a termination condition
-        InteriorPointsolve(c, A, rightHand, x, alpha, nb_variables, nb_equations, itr + 1);
+        cout << "Objective Function Value: " << (c * x) << endl;
     } else {
-        throw std::runtime_error("Maximum iterations reached without convergence.");
+        InteriorPointsolve(c, A, rightHand, x, alpha, nb_variables, nb_equations, itr + 1);
     }
 }
+
 
 
 
