@@ -7,86 +7,107 @@ class ColumnVector {
 public:
     vector<double> columnValues;
     unsigned long long columnSize;
-    ColumnVector() {
+
+    ColumnVector() : columnSize(0) {
         columnValues = vector<double>();
-        columnSize = 0;
     }
-    ColumnVector(ColumnVector const &C) {
-        columnValues = C.columnValues;
-        columnSize = C.columnSize;
+
+    ColumnVector(const ColumnVector& C) : columnValues(C.columnValues), columnSize(C.columnSize) {}
+
+    ColumnVector(ColumnVector&& C) noexcept : columnValues(move(C.columnValues)), columnSize(C.columnSize) {}
+
+    ColumnVector(const vector<double>& columnValues) : columnValues(columnValues), columnSize(columnValues.size()) {}
+
+    ColumnVector(unsigned long long size) : columnSize(size), columnValues(vector<double>(size)) {}
+
+    ColumnVector& operator=(const ColumnVector& C) {
+        if (this != &C) { // Protect against self-assignment
+            columnValues = C.columnValues;
+            columnSize = C.columnSize;
+        }
+        return *this;
     }
-    ColumnVector(ColumnVector &C) {
-        columnSize = C.columnSize;
-        columnValues = C.columnValues;
-    }
-    ColumnVector(vector<double>& columnValues) {
-        this->columnValues = columnValues;
-        columnSize = columnValues.size();
-    }
-    ColumnVector(unsigned long long size) {
-        columnSize = size;
-        columnValues = vector<double>(size);
-    }
-    ColumnVector operator+(ColumnVector& b) {
+    ColumnVector operator+(const ColumnVector& b) const {
+        if (columnSize != b.columnSize) {
+            throw std::invalid_argument("Column sizes must match for addition.");
+        }
         ColumnVector result(columnSize);
-        for (int i = 0; i < columnSize; i++) {
+        for (unsigned long long i = 0; i < columnSize; i++) {
             result.columnValues[i] = columnValues[i] + b.columnValues[i];
         }
         return result;
     }
-    ColumnVector operator-(ColumnVector& b) {
+
+    ColumnVector operator-(const ColumnVector& b) const {
+        if (columnSize != b.columnSize) {
+            throw std::invalid_argument("Column sizes must match for subtraction.");
+        }
         ColumnVector result(columnSize);
-        for (int i = 0; i < columnSize; i++) {
+        for (unsigned long long i = 0; i < columnSize; i++) {
             result.columnValues[i] = columnValues[i] - b.columnValues[i];
         }
         return result;
     }
-    ColumnVector operator*(double scalar) {
+
+    ColumnVector operator*(double scalar) const {
         ColumnVector result(columnSize);
-        for (int i = 0; i < columnSize; i++) {
+        for (unsigned long long i = 0; i < columnSize; i++) {
             result.columnValues[i] = columnValues[i] * scalar;
         }
         return result;
     }
-    ColumnVector operator/(double scalar) {
+
+    ColumnVector operator/(double scalar) const {
+        if (scalar == 0) {
+            throw std::invalid_argument("Division by zero.");
+        }
         ColumnVector result(columnSize);
-        for (int i = 0; i < columnSize; i++) {
+        for (unsigned long long i = 0; i < columnSize; i++) {
             result.columnValues[i] = columnValues[i] / scalar;
         }
         return result;
     }
+
     double operator*(const ColumnVector& b) const {
         if (columnSize != b.columnSize) {
             throw std::invalid_argument("Column sizes must match for dot product.");
         }
         double result = 0.0;
-        for (int i = 0; i < columnSize; i++) {
+        for (unsigned long long i = 0; i < columnSize; i++) {
             result += columnValues[i] * b.columnValues[i];
         }
         return result;
     }
-    friend istream& operator>>(istream& stream, ColumnVector& columnVector)
-    {
-        for (int i = 0; i < columnVector.columnSize; i++) {
+
+    double& operator()(unsigned long long index) {
+        if (index >= columnSize) {
+            throw std::out_of_range("Index out of range.");
+        }
+        return columnValues[index];
+    }
+
+    const double& operator()(unsigned long long index) const {
+        if (index >= columnSize) {
+            throw std::out_of_range("Index out of range.");
+        }
+        return columnValues[index];
+    }
+
+    friend istream& operator>>(istream& stream, ColumnVector& columnVector) {
+        for (unsigned long long i = 0; i < columnVector.columnSize; i++) {
             stream >> columnVector.columnValues[i];
         }
         return stream;
     }
 
-    friend ostream& operator<<(ostream& stream, ColumnVector& columnVector)
-    {
-        for (int i = 0; i < columnVector.columnSize; i++) {
+    friend ostream& operator<<(ostream& stream, const ColumnVector& columnVector) {
+        for (unsigned long long i = 0; i < columnVector.columnSize; i++) {
             stream << columnVector.columnValues[i] << endl;
         }
         return stream;
     }
-    double norm() {
-        double result = 0;
-        for (int i = 0; i < columnSize; i++) {
-            result += (columnValues[i]*columnValues[i]);
-        }
-        return sqrt(result);
-    }
+
+
 };
 
 
@@ -95,6 +116,19 @@ protected:
     int nbRows, nbColumns;
     vector<ColumnVector> elements;
 public:
+    double& operator()(int row, int col) {
+        if (row >= nbRows || col >= nbColumns) {
+            throw out_of_range("Index out of bounds");
+        }
+        return elements[col].columnValues[row];
+    }
+
+    const double& operator()(int row, int col) const {
+        if (row >= nbRows || col >= nbColumns) {
+            throw out_of_range("Index out of bounds");
+        }
+        return elements[col].columnValues[row];
+    }
     int getNbRows() const {
         return nbRows;
     }
@@ -281,12 +315,6 @@ public:
         *m = *m1;
         return *this;
     }
-    SquareMatrix transpose() {
-        Matrix *m = this;
-        Matrix result = m->transpose();
-        auto* sResult = (SquareMatrix *) &result;
-        return *sResult;
-    }
 };
 
 class IdentityMatrix: public SquareMatrix {
@@ -315,13 +343,9 @@ public:
         jNullified = j;
         this->setElement(i,j,-(matrix.getElement(i,j)/matrix.getElement(j,j)));
     }
-    int getINullified() const {
-        return iNullified;
-    }
 
-    int getJNullified() const {
-        return jNullified;
-    }
+
+
 
 };
 
@@ -437,58 +461,120 @@ public:
     }
 };
 
+void debugPrint(const std::string& message, const ColumnVector& vector) {
+    std::cout << message << ": ";
+    for (double value : vector.columnValues) {
+        std::cout << value << " ";
+    }
+    std::cout << std::endl;
+}
 
-void InteriorPointsolve(ColumnVector c, Matrix A, ColumnVector rightHand, ColumnVector initial, double alpha, int nb_variables, int nb_equations, int itr) {
-    Matrix D(initial);
-    Matrix A_ = A * D;
-    ColumnVector c_ = D * c;
-    Matrix A_T = A_.transpose();
-    SquareMatrix A_A_T(A_ * A_T);
-    FindInverseMatrix inverseMatrix;
-    Matrix A_A_T_1 = inverseMatrix.findInverse(A_A_T);
-    IdentityMatrix I(nb_variables);
-    Matrix P = A_A_T_1 * A_;
-    P = A_T * P;
-    P = Matrix(I) - P;
-    ColumnVector c_p = P * c_;
-    double mini = 0;
-    for (int i = 0; i < nb_variables; i++) {
-        mini = min(c_p.columnValues[i], mini);
-    }
-    double v = abs(mini);
-    ColumnVector ones(nb_variables);
-    for (int i = 0; i < nb_variables; i++) {
-        ones.columnValues[i] = 1;
-    }
-    ColumnVector x_ = c_p * (alpha / v);
-    x_ = x_ + ones;
-    ColumnVector x = D * x_;
-    bool found = true;
-    for (int i = 0; i < nb_variables; i++) {
-        if (abs(x.columnValues[i] - initial.columnValues[i]) > 1e-4)
-            found = false;
-    }
-    if (found) {
-        cout << "Optimal Solution (alpha = " << alpha << "):\n" << x;
-        cout << "Objective Function Value: " << (c * x) << endl;
-        return;
-    } else {
-        InteriorPointsolve(c, A, rightHand, x, alpha, nb_variables, nb_equations, itr + 1);
+void debugPrint(const std::string& message, const Matrix& matrix) {
+    std::cout << message << ":\n";
+    for (int i = 0; i < matrix.getNbRows(); i++) {
+        for (int j = 0; j < matrix.getNbColumns(); j++) {
+            std::cout << matrix(i, j) << " ";
+        }
+        std::cout << std::endl;
     }
 }
 
-bool checkValid(Matrix A, ColumnVector rightHand, ColumnVector initial, int nb_variables, int nb_equations) {
+void InteriorPointsolve(ColumnVector c, Matrix A, ColumnVector rightHand, ColumnVector initial, double alpha, int nb_variables, int nb_equations, int itr) {
+    // Negate the cost vector for maximization
     for (int i = 0; i < nb_variables; i++) {
-        if (initial.columnValues[i] <= 0) return false;
+        c(i) = -c(i);
     }
-    for (int i = 0; i < nb_equations; i++) {
-        double sum = 0;
-        for (int j = 0; j < nb_variables; j++) {
-            sum += A.getElement(i, j) * initial.columnValues[j];
+
+    // Set up D as a diagonal matrix with `initial` values on the diagonal
+    Matrix D(nb_variables, nb_variables);
+    for (int i = 0; i < nb_variables; i++) {
+        D.setElement(i, i, initial.columnValues[i]);
+    }
+
+    // Calculate A_ as A * D
+    Matrix A_ = A * D;
+
+    // Compute c_ as D * c
+    ColumnVector c_ = D * c;
+
+    // Transpose of A_
+    Matrix A_T = A_.transpose();
+
+    // Calculate A_A_T as A_ * A_T
+    SquareMatrix A_A_T = A_ * A_T;
+
+    // Invert A_A_T
+    FindInverseMatrix inverseMatrix;
+    SquareMatrix A_A_T_inv = inverseMatrix.findInverse(A_A_T);
+
+    // Check if inversion is successful
+    if (A_A_T_inv.getNbRows() == 0 || A_A_T_inv.getNbColumns() == 0) {
+        throw std::runtime_error("Matrix inversion failed.");
+    }
+
+    // Calculate projection matrix P
+    Matrix I(nb_variables, nb_variables);
+    for (int i = 0; i < nb_variables; i++) {
+        I.setElement(i, i, 1.0); // Create identity matrix
+    }
+    Matrix P = A_T * A_A_T_inv * A_;
+    P = I - P;
+
+    // Calculate projected cost vector c_p
+    ColumnVector c_p = P * c_;
+
+    // Check for NaN in projected cost vector
+    for (double value : c_p.columnValues) {
+        if (isnan(value)) {
+            throw std::runtime_error("c_p contains NaN values.");
         }
-        if (sum != rightHand.columnValues[i]) return false;
     }
-    return true;
+
+    // Find minimum element in c_p (negated since we're maximizing)
+    double mini = *min_element(c_p.columnValues.begin(), c_p.columnValues.end());
+    double v = abs(mini);
+
+    // Check for division by zero in scaling
+    if (v < EPSILON) {
+        throw std::runtime_error("Minimum value too close to zero, potential division by zero.");
+    }
+
+    // Initialize ones vector
+    ColumnVector ones(nb_variables);
+    for (int i = 0; i < nb_variables; i++) {
+        ones(i) = 1.0;
+    }
+
+    // Scale and adjust x_ vector
+    ColumnVector x_ = c_p * (alpha / v) + ones;
+
+    // Map back to original space
+    ColumnVector x = D * x_;
+
+    // Check for NaN in the mapped back x vector
+    for (double value : x.columnValues) {
+        if (isnan(value)) {
+            throw std::runtime_error("x contains NaN values.");
+        }
+    }
+
+    // Check for convergence
+    bool found = true;
+    for (int i = 0; i < nb_variables; i++) {
+        if (abs(x.columnValues[i] - initial.columnValues[i]) > EPSILON) {
+            found = false;
+        }
+    }
+
+    // Print the optimal solution if found, otherwise iterate further
+    if (found) {
+        cout << "Optimal Solution (alpha = " << alpha << "):\n" << x;
+        cout << "Objective Function Value: " << -(c * x) << endl; // Negate to display the maximized value
+    } else if (itr < 100) { // Add a termination condition
+        InteriorPointsolve(c, A, rightHand, x, alpha, nb_variables, nb_equations, itr + 1);
+    } else {
+        throw std::runtime_error("Maximum iterations reached without convergence.");
+    }
 }
 
 
@@ -594,9 +680,20 @@ int main() {
 
     cout << "Solution with alpha = 0.9:\n";
     InteriorPointsolve(c, A, b, initial, 0.9, nb_variables, nb_equations, 1);
-    vector<vector<double> > B(nb_variables, vector<double>(nb_equations));
+    vector<vector<double>> B(nb_equations, vector<double>(nb_variables));
+    for (int i = 0; i < nb_equations; ++i) {
+        for (int j = 0; j < nb_variables; ++j) {
+            B[i][j] = A(i, j);
+        }
+    }
     vector<double> b1(nb_equations);
+    for (int i = 0; i < nb_equations; ++i) {
+        b1[i] = b(i);
+    }
     vector<double> c1(nb_variables);
+    for (int i = 0; i < nb_variables; ++i) {
+        c1[i] = c(i);
+    }
 
     Simplex simplex(B, b1, c1);
     vector<double> x;
