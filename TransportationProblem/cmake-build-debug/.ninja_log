@@ -1,0 +1,8 @@
+# ninja log v6
+7	735	1730842889994318740	CMakeFiles/newTransportationProblem.dir/main.cpp.o	9120dd62f516cb1
+783	909	1730843059130080394	newTransportationProblem	d86cfc441f1733e9
+8	717	1730842908235473266	CMakeFiles/newTransportationProblem.dir/Matrix.cpp.o	8ede681faec9bdf9
+6	783	1730843058352977298	CMakeFiles/newTransportationProblem.dir/MethodOfVogel.cpp.o	5dbc806b1b10921c
+19	526	1730843122686210007	CMakeFiles/newTransportationProblem.dir/NorthWestCornerMethod.cpp.o	c84cc2381fac1f1
+18	614	1730843122685169220	CMakeFiles/newTransportationProblem.dir/main.cpp.o	9120dd62f516cb1
+614	708	1730843123281209749	newTransportationProblem	f794c669c847095c

@@ -1,0 +1,3 @@
+/Users/philip/CLionProjects/newTransportationProblem/cmake-build-debug/CMakeFiles/newTransportationProblem.dir
+/Users/philip/CLionProjects/newTransportationProblem/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/philip/CLionProjects/newTransportationProblem/cmake-build-debug/CMakeFiles/rebuild_cache.dir
